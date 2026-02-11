@@ -1591,15 +1591,24 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, const string&
         }
     }
 
-    ofstream outfile;
-    ostream out(0);
 
-    outfile.open(out_tmp.c_str());
-    out.rdbuf(outfile.rdbuf());
+    //
+    // ofstream outfile;
+    // ostream out(0);
+    //
+    // outfile.open(out_tmp.c_str());
+    // out.rdbuf(outfile.rdbuf());
+    //
+
+    //
+    streambuf * buf;
+    buf = std::cout.rdbuf();
+    ostream out(buf);
+    //
 
     const bool ret = this->search(query_filenames, out, found_km_ratio_out, inexact_search, files_as_queries, nb_threads, verbose);
 
-    outfile.close();
+    // outfile.close();
 
     return ret;
 }
