@@ -2580,42 +2580,50 @@ bool ColoredCDBG<U>::search(const vector<string>& query_filenames, ostream& out,
 
         string color_query_out = "";
 
+        uint32_t sum_hits = 0;
         for (size_t i = 0; i < nb_colors; ++i) {
 
             color_query_out += '\t';
 
             if (!found_km_ratio_out) color_query_out += to_string(color_occ[i]);
-            else color_query_out += to_string(static_cast<double>(color_occ[i]) / static_cast<double>(nb_km_query));
+            else if (color_occ[i] > 0) color_query_out += to_string(static_cast<double>(color_occ[i]) / static_cast<double>(nb_km_query));
+            else color_query_out += '.';
+
+            sum_hits += color_occ[i];
         }
 
-        const size_t l_color_query_out = color_query_out.length();
+        if (sum_hits > 0) {
 
-        if ((pos_buffer_out + len_query_name + l_color_query_out + 1) > thread_seq_buf_sz){
+            const size_t l_color_query_out = color_query_out.length();
 
-            unique_lock<mutex> lock(mtx);
+            if ((pos_buffer_out + len_query_name + l_color_query_out + 1) > thread_seq_buf_sz){
 
-            if (pos_buffer_out > 0) {
+                unique_lock<mutex> lock(mtx);
 
-                out.write(buffer_res, pos_buffer_out); // Write result buffer
-                pos_buffer_out = 0; // Reset position to 0;
+                if (pos_buffer_out > 0) {
+
+                    out.write(buffer_res, pos_buffer_out); // Write result buffer
+                    pos_buffer_out = 0; // Reset position to 0;
+                }
+
+                out.write(query_name, len_query_name * sizeof(char)); // Write query name
+                out.write(color_query_out.c_str(), l_color_query_out * sizeof(char)); // Write query name
+                out.write(&eol, sizeof(char));
+
+                write_success = (write_success && !out.fail());
             }
+            else {
 
-            out.write(query_name, len_query_name * sizeof(char)); // Write query name
-            out.write(color_query_out.c_str(), l_color_query_out * sizeof(char)); // Write query name
-            out.write(&eol, sizeof(char));
+                // Copy new result to buffer
+                std::memcpy(buffer_res + pos_buffer_out, query_name, len_query_name * sizeof(char));
+                std::memcpy(buffer_res + pos_buffer_out + len_query_name, color_query_out.c_str(), l_color_query_out * sizeof(char));
 
-            write_success = (write_success && !out.fail());
+                pos_buffer_out += len_query_name + l_color_query_out;
+
+                buffer_res[pos_buffer_out++] = eol;
+            }
         }
-        else {
 
-            // Copy new result to buffer
-            std::memcpy(buffer_res + pos_buffer_out, query_name, len_query_name * sizeof(char));
-            std::memcpy(buffer_res + pos_buffer_out + len_query_name, color_query_out.c_str(), l_color_query_out * sizeof(char));
-
-            pos_buffer_out += len_query_name + l_color_query_out;
-
-            buffer_res[pos_buffer_out++] = eol;
-        }
     };
 
     // Write header to TSV file
